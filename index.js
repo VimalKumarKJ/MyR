@@ -23,6 +23,10 @@ let gameinfo = [];
 
 app.get("/", async (req, res) => {
     try {
+        const gameinfo_id = await db.query("SELECT id FROM gameinfo ORDER BY id DESC LIMIT 1");
+        const tableId = gameinfo_id.rows[0].id;
+        console.log(tableId);
+
         const result = await db.query("SELECT * FROM gameinfo");
         gameinfo = result.rows;
         const gameId = gameinfo.map((game) => game.appid);
@@ -30,12 +34,14 @@ app.get("/", async (req, res) => {
             const response = await axios.get(`http://store.steampowered.com/api/appdetails?appids=${id}`);
             const imageUrl = response.data[id].data.header_image;
             const developerName = response.data[id].data.developers;
-            console.log(developerName);
-            if(imageUrl){
-                await db.query("UPDATE gameinfo SET imageurl = $1 WHERE appid = $2", [imageUrl, id]);
+
+            if(imageUrl && developerName && developerName.length > 0){
+                const developer = developerName[0];
+                await db.query("UPDATE gameinfo SET developer = ($1) WHERE appid = $2;", [developer, id])
+                await db.query("UPDATE gameinfo SET imageurl = $1 WHERE appid = $2;", [imageUrl, id]);
             }
         }
-        res.send("Image URLs updated successfully.");
+        res.send("Image URLs and developer information updated successfully.");
     } catch (error) {
         console.error("Error updating image URLs:", error);
         res.status(500).send("Error updating image URLs.");
